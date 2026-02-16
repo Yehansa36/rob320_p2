@@ -95,28 +95,109 @@ bool Socket::connect(const Endpoint &endpoint) {
         return false; 
     } 
     
+    sockaddr_in addr;
+    std::memset(&addr, 0, sizeof(addr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(endpoint.port);
+
+    //convert IP string to binary 
+    if (inet_pton(AF_INET, endpoint.address.c_str(), &addr.sin_addr) <= 0) {
+        return false;
+    }
+
+    //attemp connection 
+    if (::connect(fd_, (sockaddr*)&addr, sizeof(addr)) < 0) {
+        return false;
+    }
     
-    
+    return true;
 }
 
 /**< TODO */
-bool Socket::accept(Socket &sock) { return false; }
+bool Socket::accept(Socket &sock) { 
+    
+    if (fd_ < 0 || !_listening) {
+    return false;
+    }
+
+    sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+
+    int new_fd = ::accept(fd_, (sockaddr*)&addr, &len);
+    if (new_fd < 0) {
+        return false;
+    }
+
+    sock = Socket(new_fd, domain, type);
+    return true;
+ }
 
 /**< TODO
  * Hint: You only need to consider the case when domain is AF_INET (IPv4)
  */
-bool Socket::getsockname(Endpoint &endpoint) const { return false; }
+bool Socket::getsockname(Endpoint &endpoint) const { 
+    if (domain != AF_INET || fd_ < 0) {
+    return false; 
+    }
+
+    sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+
+    if(::getsockname(fd_, (sockaddr*)&addr, &len) < 0) {
+        return false;
+    }
+
+    char ip[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &addr.sin_addr, ip, INET_ADDRSTRLEN);
+
+    endpoint = Endpoint(std::string(ip), ntohs(addr.sin_port));
+    return true;
+
+}
 
 /**< TODO
  * Hint: You only need to consider the case when domain is AF_INET (IPv4)
  */
-bool Socket::getpeername(Endpoint &endpoint) const { return false; }
+bool Socket::getpeername(Endpoint &endpoint) const { 
+    if (domain != AF_INET || fd_ < 0) {
+    return false; 
+    }
+
+    sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+    
+    if (::getpeername(fd_, (sockaddr*)&addr, &len) < 0) {
+        return false;
+    }
+
+    char ip[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &addr.sin_addr, ip, INET_ADDRSTRLEN);
+
+    endpoint = Endpoint(std::string(ip), ntohs(addr.sin_port));
+    return true;
+
+}
+
 
 /**< TODO */
-bool Socket::getsockopt(int level, int optname, int &value) { return false; }
+bool Socket::getsockopt(int level, int optname, int &value) { 
+    socklen_t len = sizeof(value);
+
+    if (::getsockopt(fd_, level, optname, &value, &len) < 0) {
+        return false;
+    }
+    return true; 
+
+}
 
 /**< TODO */
-bool Socket::setsockopt(int level, int optname, int value) { return false; }
+bool Socket::setsockopt(int level, int optname, int value) { 
+    if (::setsockopt(fd_, level, optname, &value, sizeof(value)) < 0) {
+        return false;
+    }
+    return true; 
+}
 
 bool Socket::is_bound() const { return _bound; }
 
