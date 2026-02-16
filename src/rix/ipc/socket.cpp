@@ -45,15 +45,59 @@ Socket::~Socket() {}
 /**< TODO
  * Hint: You only need to consider the case when domain is AF_INET (IPv4)
  */
-bool Socket::bind(const Endpoint &endpoint) { return false; }
+bool Socket::bind(const Endpoint &endpoint) { 
+
+    if (domain != AF_INET || fd_ < 0) {
+    return false; 
+    }
+
+    //create IPv4 socket address structure
+    sockaddr_in addr;
+    std::memset(&addr, 0, sizeof(addr));
+
+    //set address family
+    addr.sin_family = AF_INET;
+
+    //covert IP string to binary and set 
+    if (inet_pton(AF_INET, endpoint.address.c_str(), &addr.sin_addr) <= 0) {
+        return false;
+    }
+    
+    //call OS bind
+    if (::bind(fd_, (sockaddr*)&addr, sizeof(addr)) < 0) {
+        return false;
+    }
+
+    //mark socket as bound
+    _bound = true;
+    return true;
+}
 
 /**< TODO */
-bool Socket::listen(int backlog) { return false; }
+bool Socket::listen(int backlog) { 
+    if (fd_ < 0 || !_bound) {
+    return false; 
+    }
+
+    if (::listen(fd_, backlog) < 0) {
+        return false;
+    }
+
+    _listening = true;
+    return true;
+}
 
 /**< TODO
  * Hint: You only need to consider the case when domain is AF_INET (IPv4)
  */
-bool Socket::connect(const Endpoint &endpoint) { return false; }
+bool Socket::connect(const Endpoint &endpoint) { 
+    if (domain != AF_INET || fd_ < 0) {
+        return false; 
+    } 
+    
+    
+    
+}
 
 /**< TODO */
 bool Socket::accept(Socket &sock) { return false; }
