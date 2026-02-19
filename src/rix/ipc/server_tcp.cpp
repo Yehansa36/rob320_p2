@@ -4,7 +4,14 @@ namespace rix {
 namespace ipc {
 
 /**< TODO */
-ServerTCP::ServerTCP(const Endpoint &ep, size_t backlog) {}
+ServerTCP::ServerTCP(const Endpoint &ep, size_t backlog)
+    : socket(AF_INET, SOCK_STREAM), connections() {
+
+    if (!socket.bind(ep)) return;
+
+    if (!socket.listen(backlog)) return;
+    }
+
 
 ServerTCP::ServerTCP() : socket(), connections() {}
 
@@ -21,25 +28,77 @@ ServerTCP &ServerTCP::operator=(const ServerTCP &other) {
 ServerTCP::~ServerTCP() {}
 
 /**< TODO */
-void ServerTCP::close(const std::weak_ptr<interfaces::Connection> &connection) {}
+void ServerTCP::close(const std::weak_ptr<interfaces::Connection> &connection) {
+    auto shared = connection.lock();
+    if (shared) return;
+
+    connections.erase(shared);
+}
 
 /**< TODO */
-bool ServerTCP::ok() const { return false; }
+bool ServerTCP::ok() const { 
+    
+    return socket.ok(); 
+}
 
 /**< TODO */
-Endpoint ServerTCP::local_endpoint() const { return {}; }
+Endpoint ServerTCP::local_endpoint() const { 
+    Endpoint ep;
+    socket.getsockname(ep);
+    return ep;
+    
+}
 
 /**< TODO */
-bool ServerTCP::accept(std::weak_ptr<interfaces::Connection> &connection) { return false; }
+bool ServerTCP::accept(std::weak_ptr<interfaces::Connection> &connection) { 
+
+    Socket client_socket;
+
+    if (!socket.accept(client_socket)) return false;
+
+    auto conn = std::make_shared<ConnectionTCP>(client_socket);
+
+    connections.insert(conn);
+
+    connection = conn;
+    return true; 
+}
 
 /**< TODO */
-bool ServerTCP::wait_for_accept(rix::util::Duration duration) const { return false; }
+bool ServerTCP::wait_for_accept(rix::util::Duration duration) const { 
+    
+    fd_set rfds;
+    FD_ZERO(&rfds);
+    FD_SET(socket.fd(), &rfds);
+
+    timeval tv;
+    tv.tv_sec = duration.to_seconds();
+    tv.tv_usec = duration.to_microseconds() % 1000000;
+
+    int ret = select(socket.fd() + 1, &rfds, nullptr, nullptr, &tv);
+
+    return ret > 0 && FD_ISSET(socket.fd(), &rfds);
+    
+}
 
 /**< TODO */
-void ServerTCP::set_nonblocking(bool status) {}
+void ServerTCP::set_nonblocking(bool status) {
+    int flags = fcntl(socket.fd(), F_GETFL, 0);
+    if (flags < 0) return;
+
+    if (status)
+        fcntl(socket.fd(), F_SETFL, flags | O_NONBLOCK);
+    else
+        fcntl(socket.fd(), F_SETFL, flags & ~O_NONBLOCK);
+}
 
 /**< TODO */
-bool ServerTCP::is_nonblocking() const { return false; }
+bool ServerTCP::is_nonblocking() const { 
+    int flags = fcntl(socket.fd(), F_GETFL, 0);
+    if (flags < 0) return false;
+
+    return (flags & O_NONBLOCK) != 0; 
+}
 
 }  // namespace ipc
 }  // namespace rix
