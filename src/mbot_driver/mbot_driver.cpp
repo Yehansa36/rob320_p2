@@ -12,6 +12,7 @@ MBotDriver::MBotDriver(std::unique_ptr<interfaces::Server> server, std::unique_p
 void MBotDriver::spin(std::unique_ptr<interfaces::Notification> notif) {
     //run until notifincation is triggered
 
+    mbot->spin();
     while (!notif->is_ready()) {
         std::weak_ptr<interfaces::Connection> new_connection;
 
