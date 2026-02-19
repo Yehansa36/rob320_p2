@@ -1,5 +1,6 @@
 #include "rix/ipc/server_tcp.hpp"
 
+
 namespace rix {
 namespace ipc {
 
@@ -54,13 +55,16 @@ bool ServerTCP::accept(std::weak_ptr<interfaces::Connection> &connection) {
 
     Socket client_socket;
 
-    if (!socket.accept(client_socket)) return false;
+    if (!socket.accept(client_socket)) {
+        return false;
+    }
 
-    auto conn = std::make_shared<ConnectionTCP>(client_socket);
+    // Use the factory method to create a shared_ptr
+    auto conn = ConnectionTCP::create(client_socket);
 
     connections.insert(conn);
-
     connection = conn;
+
     return true; 
 }
 
