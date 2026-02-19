@@ -3,6 +3,8 @@
 namespace rix {
 namespace ipc {
 
+
+
 ConnectionTCP::ConnectionTCP(const Socket &socket) : socket(socket) {}
 
 ConnectionTCP::ConnectionTCP() : socket() {}
