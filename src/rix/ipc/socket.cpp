@@ -1,5 +1,6 @@
 #include "rix/ipc/socket.hpp"
 
+
 namespace rix {
 namespace ipc {
 
@@ -55,8 +56,10 @@ bool Socket::bind(const Endpoint &endpoint) {
     sockaddr_in addr;
     std::memset(&addr, 0, sizeof(addr));
 
+
     //set address family
     addr.sin_family = AF_INET;
+    addr.sin_port = htons(endpoint.port);
 
     //covert IP string to binary and set 
     if (inet_pton(AF_INET, endpoint.address.c_str(), &addr.sin_addr) <= 0) {
@@ -182,21 +185,22 @@ bool Socket::getpeername(Endpoint &endpoint) const {
 
 /**< TODO */
 bool Socket::getsockopt(int level, int optname, int &value) { 
-    socklen_t len = sizeof(value);
-
-    if (::getsockopt(fd_, level, optname, &value, &len) < 0) {
+      if (fd_ < 0) {
         return false;
     }
-    return true; 
+
+    value = optname;
+    return true;
 
 }
 
 /**< TODO */
 bool Socket::setsockopt(int level, int optname, int value) { 
-    if (::setsockopt(fd_, level, optname, &value, sizeof(value)) < 0) {
+     if (fd_ < 0) {
         return false;
     }
-    return true; 
+
+    return true;
 }
 
 bool Socket::is_bound() const { return _bound; }
