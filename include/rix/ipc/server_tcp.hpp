@@ -7,6 +7,11 @@
 #include "rix/ipc/interfaces/server.hpp"
 #include "rix/ipc/socket.hpp"
 
+#include <memory>
+
+
+
+
 namespace rix {
 namespace ipc {
 
