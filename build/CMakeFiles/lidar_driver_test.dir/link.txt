@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/lidar_driver_test.dir/tests/lidar_driver.cpp.o CMakeFiles/lidar_driver_test.dir/src/lidar_driver/lidar_driver.cpp.o -o lidar_driver_test  libproject2.a liblidar.a /usr/lib/aarch64-linux-gnu/libgtest_main.a /usr/lib/aarch64-linux-gnu/libgmock.a ../lib/linux-aarch64/libproject1.a librplidar_sdk.a /usr/lib/aarch64-linux-gnu/libgtest.a 
