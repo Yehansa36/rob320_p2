@@ -1,5 +1,8 @@
 #include "rix/ipc/server_tcp.hpp"
+#include "rix/ipc/interfaces/server.hpp"
 #include <memory>
+#include <unordered_set>
+
 
 
 namespace rix {
