@@ -2,6 +2,8 @@
 
 #include "rix/ipc/interfaces/connection.hpp"
 #include "rix/ipc/socket.hpp"
+#include <memory>
+
 
 namespace rix {
 namespace ipc {
