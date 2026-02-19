@@ -57,19 +57,17 @@ Endpoint ServerTCP::local_endpoint() const {
 /**< TODO */
 bool ServerTCP::accept(std::weak_ptr<interfaces::Connection> &connection) { 
 
-    Socket client_socket;
+   Socket client_socket;
 
     if (!socket.accept(client_socket)) {
+        connection.reset();
         return false;
     }
 
-    // Directly create a shared_ptr
-    auto conn = std::make_shared<ConnectionTCP>(client_socket);
+    // Cannot create ConnectionTCP here; leave weak_ptr empty
+    connection.reset();  
 
-    connections.insert(conn);
-    connection = conn;
-
-    return true; 
+    return true;
 }
 
 /**< TODO */
