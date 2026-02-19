@@ -1,4 +1,6 @@
 #include "rix/ipc/client_tcp.hpp"
+#include <memory>
+
 
 namespace rix {
 namespace ipc {
