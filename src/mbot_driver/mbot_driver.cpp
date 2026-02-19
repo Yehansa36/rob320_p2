@@ -12,19 +12,29 @@ MBotDriver::MBotDriver(std::unique_ptr<interfaces::Server> server, std::unique_p
 void MBotDriver::spin(std::unique_ptr<interfaces::Notification> notif) {
     //run until notifincation is triggered
 
-    mbot->spin();
-    while (!notif->is_ready()) {
-        std::weak_ptr<interfaces::Connection> new_connection;
+    //auto start_time = std::chrono::steady_clock::now();
+    //const auto max_duration = std::chrono::seconds(10);
+  mbot->spin();
 
-        //accept a cleint connection
+    const rix::util::Duration poll(0.01);  // 10ms poll interval
+
+    bool done = false;
+    while (!done) {
+        // Wait up to 10ms for an incoming connection, then re-check notif
+        if (!server->wait_for_accept(poll)) {
+            done = notif->wait(rix::util::Duration(0));
+            continue;
+        }
+
+        std::weak_ptr<interfaces::Connection> new_connection;
         if (!server->accept(new_connection)) {
+            done = notif->wait(rix::util::Duration(0));
             continue;
         }
 
         {
             std::lock_guard<std::mutex> lock(connection_mtx);
             connection = new_connection;
-
         }
 
         auto shared_conn = new_connection.lock();
@@ -32,28 +42,37 @@ void MBotDriver::spin(std::unique_ptr<interfaces::Notification> notif) {
 
         Endpoint remote = shared_conn->remote_endpoint();
 
-        //connect clinet to same addres but port 8300
+        // Connect client to same address but port 8300
         Endpoint goal_server(remote.address, 8300);
 
-        if (!client->connect(goal_server)) {
-            client->reset();
-            continue;
+        // Retry connecting until successful or shutdown
+        while (!client->connect(goal_server)) {
+            if ((done = notif->wait(rix::util::Duration(0)))) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
+        if (done) break;
 
-        //read goal pose2dstamped msgs
-        while (!notif->is_ready()) {
-            //first read 4 byte size 
+        // Read goal Pose2DStamped messages until disconnected or shutdown
+        while (!done) {
+            // Wait up to 10ms for readable data, then re-check notif
+            if (!client->wait_for_readable(poll)) {
+                done = notif->wait(rix::util::Duration(0));
+                continue;
+            }
 
+            // Read 4-byte size prefix (serialized)
             UInt32 size_msg;
-            ssize_t n = client->read(reinterpret_cast<uint8_t*>(&size_msg), sizeof(UInt32));
+            std::vector<uint8_t> size_buf(size_msg.size());
+            ssize_t n = client->read(size_buf.data(), size_buf.size());
 
             if (n <= 0) {
                 client->reset();
                 break;
             }
 
+            size_t size_offset = 0;
+            size_msg.deserialize(size_buf.data(), size_buf.size(), size_offset);
             uint32_t msg_size = size_msg.data;
-
             std::vector<uint8_t> buffer(msg_size);
 
             ssize_t total_read = 0;
@@ -66,7 +85,6 @@ void MBotDriver::spin(std::unique_ptr<interfaces::Notification> notif) {
                 }
 
                 total_read += r;
-
             }
 
             if (total_read != (ssize_t)msg_size) {
@@ -78,13 +96,10 @@ void MBotDriver::spin(std::unique_ptr<interfaces::Notification> notif) {
             goal_pose.deserialize(buffer.data(), buffer.size(), bytes_read);
 
             mbot->drive_to(goal_pose);
-
         }
-
     }
 }
 
-/**< TODO */
 void MBotDriver::on_pose_callback(const Pose2DStamped &pose) {
     std::lock_guard<std::mutex> lock(connection_mtx);
 
@@ -93,22 +108,14 @@ void MBotDriver::on_pose_callback(const Pose2DStamped &pose) {
 
     size_t msg_size = pose.size();
 
-    //allocate buffer
-    std::vector<uint8_t> buffer(msg_size);
-
-    //serialize into buffer
-    size_t offset = 0;
-    pose.serialize(buffer.data(), offset);
-
-    //prefix with 4 byts size
+    // Build a single buffer: serialized size prefix + serialized pose
     UInt32 size_prefix;
     size_prefix.data = static_cast<uint32_t>(msg_size);
 
-    //send size prefix
-    if (shared_conn->write(reinterpret_cast<uint8_t*>(&size_prefix), sizeof(UInt32)) <= 0) {
-        return;
-    }
+    std::vector<uint8_t> buffer(size_prefix.size() + msg_size);
+    size_t offset = 0;
+    size_prefix.serialize(buffer.data(), offset);  // serialize size prefix properly
+    pose.serialize(buffer.data(), offset);          // serialize pose after it
 
-    shared_conn->write(buffer.data(), msg_size);
-
+    shared_conn->write(buffer.data(), buffer.size());
 }
